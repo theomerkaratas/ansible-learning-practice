@@ -1,0 +1,103 @@
+---
+- name: Install Solr {{ solr_version }} via mirror + verify + systemd service
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - vars.yml
+
+  pre_tasks:
+    - name: Update apt cache if needed
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  handlers:
+    - name: Restart Solr 
+      ansible.builtin.service:
+        name: solr 
+        state: restarted
+
+  tasks:
+    - name: Ensure Java 17 is installed
+      ansible.builtin.apt:
+        name: openjdk-17-jre
+        state: present
+
+    - name: Create temp dir for Solr artifacts
+      ansible.builtin.file:
+        path: /tmp/solr
+        state: directory
+        mode: "0755"
+
+    - name: Fetch SHA512 file (official)
+      ansible.builtin.uri:
+        url: "{{ solr_sha512_url }}"
+        return_content: true
+      register: solr_sha512
+
+    - name: Parse checksum from SHA512 content
+      ansible.builtin.set_fact:
+        solr_checksum: "sha512:{{ (solr_sha512.content.split()[0]) }}"
+
+    - name: Download Solr tgz (with checksum verify)
+      ansible.builtin.get_url:
+        url: "{{ solr_tgz_url }}"
+        dest: "/tmp/solr/{{ solr_pkg }}"
+        mode: "0644"
+        checksum: "{{ solr_checksum }}"
+
+    - name: Check if init.d script exists
+      ansible.builtin.stat:
+        path: "/etc/init.d/{{ solr_service }}"
+      register: solr_init
+
+    - name: Check if systemd unit exists in /etc
+      ansible.builtin.stat:
+        path: "/etc/systemd/system/{{ solr_service }}.service"
+      register: solr_unit_etc
+
+    - name: Check if systemd unit exists in /lib
+      ansible.builtin.stat:
+        path: "/lib/systemd/system/{{ solr_service }}.service"
+      register: solr_unit_lib
+
+    - name: Extract only install_solr_service.sh using unarchive
+      ansible.builtin.unarchive:
+        src: "/tmp/solr/{{ solr_pkg }}"
+        dest: "/tmp/solr"
+        remote_src: true
+        include:
+          - "solr-{{ solr_version }}/bin/install_solr_service.sh"
+        extra_opts:
+          - "--strip-components=2"
+      changed_when: false
+      when: not (solr_init.stat.exists or solr_unit_etc.stat.exists or solr_unit_lib.stat.exists)
+
+    - name: Run Solr service installer (only if not installed)
+      ansible.builtin.command:
+        argv:
+          - bash
+          - ./install_solr_service.sh
+          - "/tmp/solr/{{ solr_pkg }}"
+          - "-i"
+          - "{{ download_dir }}"
+          - "-d"
+          - "{{ solr_dir }}"
+          - "-u"
+          - "{{ solr_user }}"
+          - "-s"
+          - "{{ solr_service }}"
+          - "-p"
+          - "{{ solr_port | string }}"
+      args:
+        chdir: /tmp/solr
+      when: not (solr_init.stat.exists or solr_unit_etc.stat.exists or solr_unit_lib.stat.exists)
+      notify: Restart Solr
+
+    - name: Ensure Solr service is enabled and running
+      ansible.builtin.service:
+        name: "{{ solr_service }}"
+        enabled: true
+        state: started

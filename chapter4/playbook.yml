@@ -1,0 +1,43 @@
+---
+- name: Install & enable NGINX on all hosts (Debian + RHEL/AL2023)
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Update apt cache (Debian family)
+      ansible.builtin.apt:
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    - name: Collect service facts (to detect Apache/httpd)
+      ansible.builtin.service_facts:
+
+    - name: Stop & disable Apache on Debian if present
+      ansible.builtin.service:
+        name: apache2
+        state: stopped
+        enabled: false
+      when:
+        - ansible_os_family == "Debian"
+        - "'apache2.service' in ansible_facts.services"
+
+    - name: Stop & disable httpd on RHEL/AL if present
+      ansible.builtin.service:
+        name: httpd
+        state: stopped
+        enabled: false
+      when:
+        - ansible_os_family == "RedHat"
+        - "'httpd.service' in ansible_facts.services"
+
+    - name: Install NGINX (all)
+      ansible.builtin.package:
+        name: nginx
+        state: present
+
+    - name: Start & enable NGINX (all)
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true

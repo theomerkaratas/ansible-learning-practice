@@ -1,0 +1,17 @@
+# This inventory relies on SSH config (~/.ssh/config) entries for host settings
+# such as HostName, User, and IdentityFile, so we only list host aliases here.
+
+[redhat_family]
+ansible_server_1
+ansible_server_2
+
+[debian_family]
+ansible_server_3
+
+[all:children]
+redhat_family
+debian_family
+
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3
+

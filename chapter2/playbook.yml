@@ -1,0 +1,15 @@
+- name: Set up chronyd on all servers
+  hosts: all
+  become: yes
+  tasks:
+    - name: Ensure chrony is installed on Amazon Linux
+      package:
+        name: chrony
+        state: present
+
+    - name: Ensure chronyd is running and enabled on Amazon Linux
+      service:
+        name: chronyd
+        state: started
+        enabled: yes
+        

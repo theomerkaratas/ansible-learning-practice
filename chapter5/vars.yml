@@ -1,0 +1,11 @@
+---
+download_dir: "/opt"
+solr_dir: "/var/solr"
+solr_version: "9.9.0"
+solr_pkg: "solr-{{ solr_version }}.tgz"
+solr_base_url: "https://downloads.apache.org/solr/solr/{{ solr_version }}"
+solr_tgz_url: "{{ solr_base_url }}/{{ solr_pkg }}"
+solr_sha512_url: "{{ solr_tgz_url }}.sha512"
+solr_user: "solr"
+solr_service: "solr"
+solr_port: 8983

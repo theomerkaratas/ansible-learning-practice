@@ -1,0 +1,49 @@
+- name: Ensure time sync is installed and running everywhere
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Update APT cache on Debian Family
+      ansible.builtin.apt:
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure chrony package is present
+      ansible.builtin.package:
+        name: "chrony"
+        state: present
+
+    - name: Ensure time sync service is started and enabled on Debian Family
+      ansible.builtin.service:
+        name: "chrony"
+        state: started
+        enabled: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure time sync service is started and enabled on Red Hat Family
+      ansible.builtin.service:
+        name: "chronyd"
+        state: started
+        enabled: yes
+      when: ansible_os_family == "RedHat"
+
+    - name: Run APT update + upgrade on Debian Family
+      ansible.builtin.shell: "apt-get update && apt-get -y upgrade"
+      async: 3600
+      poll: 0 
+      register: debian_job
+      when: ansible_os_family == "Debian"
+
+    - name: Run YUM update on RedHat family
+      ansible.builtin.shell: "yum -y update"
+      async: 3600
+      poll: 0
+      register: redhat_job
+      when: ansible_os_family == "RedHat"
+
+    - name: Debug show job ids
+      ansible.builtin.debug:
+        msg: >
+          Debian job: {{ debian_job.ansible_job_id | default('N/A') }},
+          RedHat job: {{ redhat_job.ansible_job_id | default('N/A') }}

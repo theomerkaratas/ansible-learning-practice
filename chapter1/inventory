@@ -1,0 +1,5 @@
+[example]
+ansible_server_1 
+
+[example:vars]
+ansible_python_interpreter=/usr/bin/python3.12
